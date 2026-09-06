@@ -1,0 +1,375 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Cooperative Gig Services Platform API",
+    "version": "1.0.0",
+    "description": "Production-ready Express.js & PostgreSQL REST API for Cooperative Gig Services, featuring Worker Verification, Geo-location Matching, Smart Worker Allocation, Invoicing & Mock Payment, Cooperative Welfare Fund Tracking, and AI-Ready Demand Forecasting."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api/v1",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["email", "password", "full_name", "role"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "worker@example.com" },
+          "password": { "type": "string", "minLength": 6, "example": "password123" },
+          "full_name": { "type": "string", "example": "Jane Worker" },
+          "phone": { "type": "string", "example": "+1234567890" },
+          "role": { "type": "string", "enum": ["customer", "gig_worker", "cooperative_admin"], "example": "gig_worker" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "worker@example.com" },
+          "password": { "type": "string", "example": "password123" }
+        }
+      },
+      "WorkerProfileUpdate": {
+        "type": "object",
+        "properties": {
+          "bio": { "type": "string", "example": "Certified electrician with 5 years experience." },
+          "latitude": { "type": "number", "example": 18.5204 },
+          "longitude": { "type": "number", "example": 73.8567 },
+          "address": { "type": "string", "example": "123 Main Street" },
+          "vehicle_type": { "type": "string", "example": "E-Bike" },
+          "insurance_provider": { "type": "string", "example": "Coop Mutual Health & Disability" },
+          "insurance_policy_number": { "type": "string", "example": "POL-998877" },
+          "identity_document_url": { "type": "string", "example": "https://example.com/docs/id.pdf" }
+        }
+      },
+      "CreateCategory": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "example": "Home Maintenance" },
+          "description": { "type": "string", "example": "General home repairs, electrical, and plumbing." }
+        }
+      },
+      "CreateSkill": {
+        "type": "object",
+        "required": ["category_id", "name"],
+        "properties": {
+          "category_id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string", "example": "Electrical Wiring" },
+          "description": { "type": "string", "example": "Inspection and fixing electrical wiring" },
+          "base_hourly_rate": { "type": "number", "example": 35.00 }
+        }
+      },
+      "CreateBooking": {
+        "type": "object",
+        "required": ["category_id", "skill_id", "service_address", "latitude", "longitude", "scheduled_time"],
+        "properties": {
+          "category_id": { "type": "string", "format": "uuid" },
+          "skill_id": { "type": "string", "format": "uuid" },
+          "service_address": { "type": "string", "example": "456 Oak Avenue, City" },
+          "latitude": { "type": "number", "example": 18.5204 },
+          "longitude": { "type": "number", "example": 73.8567 },
+          "scheduled_time": { "type": "string", "format": "date-time", "example": "2026-09-10T10:00:00Z" },
+          "estimated_hours": { "type": "number", "example": 2.0 },
+          "notes": { "type": "string", "example": "Fix ceiling light fixture" },
+          "worker_id": { "type": "string", "format": "uuid", "nullable": true }
+        }
+      },
+      "ProcessPayment": {
+        "type": "object",
+        "required": ["invoice_id", "payment_method"],
+        "properties": {
+          "invoice_id": { "type": "string", "format": "uuid" },
+          "payment_method": { "type": "string", "enum": ["credit_card", "debit_card", "upi", "coop_wallet", "bank_transfer"], "example": "coop_wallet" },
+          "transaction_reference": { "type": "string", "example": "TXN_987654321" }
+        }
+      },
+      "CreateRating": {
+        "type": "object",
+        "required": ["booking_id", "score"],
+        "properties": {
+          "booking_id": { "type": "string", "format": "uuid" },
+          "score": { "type": "integer", "minimum": 1, "maximum": 5, "example": 5 },
+          "comment": { "type": "string", "example": "Excellent work and very prompt!" }
+        }
+      },
+      "SubmitClaim": {
+        "type": "object",
+        "required": ["title", "claim_type", "description", "amount_requested"],
+        "properties": {
+          "title": { "type": "string", "example": "Medical Checkup Reimbursement" },
+          "claim_type": { "type": "string", "enum": ["health", "injury", "equipment", "education", "emergency"], "example": "health" },
+          "description": { "type": "string", "example": "Annual health checkup at accredited clinic." },
+          "amount_requested": { "type": "number", "example": 150.00 }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user (Customer, Gig Worker, or Cooperative Admin)",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "User registered successfully" },
+          "400": { "description": "Validation error or email already exists" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Log in and obtain JWT authentication token",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Login successful" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get logged-in user profile details",
+        "responses": {
+          "200": { "description": "User profile fetched" },
+          "401": { "description": "Unauthenticated" }
+        }
+      }
+    },
+    "/workers/profile": {
+      "put": {
+        "tags": ["Worker Management"],
+        "summary": "Update gig worker profile details and documents",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkerProfileUpdate" } } }
+        },
+        "responses": {
+          "200": { "description": "Worker profile updated" }
+        }
+      }
+    },
+    "/workers/pending": {
+      "get": {
+        "tags": ["Worker Management (Admin)"],
+        "summary": "List workers pending verification",
+        "responses": {
+          "200": { "description": "Pending workers list" }
+        }
+      }
+    },
+    "/workers/{id}/verify": {
+      "patch": {
+        "tags": ["Worker Management (Admin)"],
+        "summary": "Verify or reject worker application",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Verification status updated" }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": ["Categories & Skills"],
+        "summary": "List all service categories",
+        "security": [],
+        "responses": { "200": { "description": "List of categories" } }
+      },
+      "post": {
+        "tags": ["Categories & Skills (Admin)"],
+        "summary": "Create service category",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateCategory" } } }
+        },
+        "responses": { "201": { "description": "Category created" } }
+      }
+    },
+    "/skills": {
+      "get": {
+        "tags": ["Categories & Skills"],
+        "summary": "List skills",
+        "security": [],
+        "responses": { "200": { "description": "List of skills" } }
+      },
+      "post": {
+        "tags": ["Categories & Skills (Admin)"],
+        "summary": "Create skill under category",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateSkill" } } }
+        },
+        "responses": { "201": { "description": "Skill created" } }
+      }
+    },
+    "/bookings": {
+      "post": {
+        "tags": ["Customer Bookings"],
+        "summary": "Create new service booking request",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateBooking" } } }
+        },
+        "responses": { "201": { "description": "Booking created" } }
+      },
+      "get": {
+        "tags": ["Customer Bookings"],
+        "summary": "List bookings (filtered by role)",
+        "responses": { "200": { "description": "List of bookings" } }
+      }
+    },
+    "/match/workers": {
+      "get": {
+        "tags": ["Geo-Location Matching"],
+        "summary": "Find nearby verified workers within radius km",
+        "parameters": [
+          { "name": "latitude", "in": "query", "required": true, "schema": { "type": "number" } },
+          { "name": "longitude", "in": "query", "required": true, "schema": { "type": "number" } },
+          { "name": "skill_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "max_distance_km", "in": "query", "schema": { "type": "number", "default": 25 } }
+        ],
+        "responses": { "200": { "description": "Matched workers ordered by proximity" } }
+      }
+    },
+    "/allocation/score/{bookingId}": {
+      "get": {
+        "tags": ["Smart Allocation"],
+        "summary": "Calculate multi-factor smart allocation scores for candidate workers",
+        "parameters": [
+          { "name": "bookingId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Scored workers list" } }
+      }
+    },
+    "/allocation/auto-assign/{bookingId}": {
+      "post": {
+        "tags": ["Smart Allocation"],
+        "summary": "Auto-assign highest-scoring verified worker to booking",
+        "parameters": [
+          { "name": "bookingId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Worker auto-assigned" } }
+      }
+    },
+    "/jobs/{bookingId}/accept": {
+      "post": {
+        "tags": ["Job Lifecycle"],
+        "summary": "Gig worker accepts booking",
+        "responses": { "200": { "description": "Job accepted" } }
+      }
+    },
+    "/jobs/{bookingId}/start": {
+      "post": {
+        "tags": ["Job Lifecycle"],
+        "summary": "Gig worker starts job",
+        "responses": { "200": { "description": "Job status set to in_progress" } }
+      }
+    },
+    "/jobs/{bookingId}/complete": {
+      "post": {
+        "tags": ["Job Lifecycle"],
+        "summary": "Gig worker completes job and generates invoice + welfare contribution",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["actual_hours"], "properties": { "actual_hours": { "type": "number", "example": 2.5 } } } } }
+        },
+        "responses": { "200": { "description": "Job completed & invoice created" } }
+      }
+    },
+    "/payments/process": {
+      "post": {
+        "tags": ["Invoices & Payments"],
+        "summary": "Customer processes mock payment for invoice",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProcessPayment" } } }
+        },
+        "responses": { "200": { "description": "Mock payment processed" } }
+      }
+    },
+    "/ratings": {
+      "post": {
+        "tags": ["Ratings & Reviews"],
+        "summary": "Submit rating and review for completed job",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateRating" } } }
+        },
+        "responses": { "201": { "description": "Rating submitted" } }
+      }
+    },
+    "/welfare/worker/status": {
+      "get": {
+        "tags": ["Welfare & Insurance"],
+        "summary": "Get worker insurance status and welfare fund earnings",
+        "responses": { "200": { "description": "Welfare status details" } }
+      }
+    },
+    "/welfare/claims": {
+      "post": {
+        "tags": ["Welfare & Insurance"],
+        "summary": "Submit a welfare claim",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubmitClaim" } } }
+        },
+        "responses": { "201": { "description": "Claim submitted" } }
+      }
+    },
+    "/welfare/summary": {
+      "get": {
+        "tags": ["Welfare & Insurance (Admin)"],
+        "summary": "Get cooperative welfare fund ledger and metrics",
+        "responses": { "200": { "description": "Coop welfare summary" } }
+      }
+    },
+    "/forecasting/demand-features": {
+      "get": {
+        "tags": ["AI Demand Forecasting"],
+        "summary": "Get ML feature vectors for demand model training",
+        "responses": { "200": { "description": "ML feature dataset" } }
+      }
+    },
+    "/forecasting/predict": {
+      "get": {
+        "tags": ["AI Demand Forecasting"],
+        "summary": "Get time-series demand density predictions by zone",
+        "responses": { "200": { "description": "Demand predictions" } }
+      }
+    },
+    "/admin/dashboard": {
+      "get": {
+        "tags": ["Admin Dashboard"],
+        "summary": "Get comprehensive system overview stats and financials",
+        "responses": { "200": { "description": "Dashboard overview statistics" } }
+      }
+    }
+  }
+}
