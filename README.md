@@ -1,5 +1,7 @@
 # Cooperative Gig Services Platform
 
+The Cooperative Gig Services API connects workers, cooperatives, businesses, and customers. It supports job matching, service management, payments, and worker tracking, enabling efficient and transparent gig services.
+
 A production-grade, full-stack Cooperative Gig Services Platform built with **React**, **Vite**, **Node.js**, **Express.js**, **PostgreSQL**, and **JWT Authentication**.
 
 ---
